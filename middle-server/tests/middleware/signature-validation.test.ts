@@ -20,7 +20,7 @@ describe('Signature Validation Middleware', () => {
   });
 
   // Scenario 1: Valid signature validation
-  it('should validate a valid signature', () => {
+  it('should validate a correct signature', () => {
     const testBody = { data: 'test data' };
     const { signature, timestamp } = generateSignature(secretKey, testBody);
 
@@ -41,8 +41,8 @@ describe('Signature Validation Middleware', () => {
     expect(mockResponse.status).not.toHaveBeenCalled();
   });
 
-  // Scenario 2: Missing signature
-  it('should reject request with missing signature', () => {
+  // Scenario 2: Missing signature headers
+  it('should reject request with missing signature headers', () => {
     mockRequest.body = { data: 'test data' };
 
     const middleware = signatureValidationMiddleware({ secretKey });
@@ -55,7 +55,7 @@ describe('Signature Validation Middleware', () => {
     expect(mockResponse.status).toHaveBeenCalledWith(401);
     expect(mockResponse.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        message: 'Missing signature or timestamp'
+        message: 'Missing signature or timestamp header'
       })
     );
     expect(mockNext).not.toHaveBeenCalled();
@@ -119,7 +119,34 @@ describe('Signature Validation Middleware', () => {
     expect(mockNext).not.toHaveBeenCalled();
   });
 
-  // Scenario 5: Custom validation
+  // Scenario 5: Invalid timestamp format
+  it('should reject request with invalid timestamp format', () => {
+    const testBody = { data: 'test data' };
+    const { signature } = generateSignature(secretKey, testBody);
+
+    mockRequest.headers = { 
+      'x-signature': signature,
+      'x-timestamp': 'not-a-number'
+    };
+    mockRequest.body = testBody;
+
+    const middleware = signatureValidationMiddleware({ secretKey });
+    middleware(
+      mockRequest as Request, 
+      mockResponse as Response, 
+      mockNext
+    );
+
+    expect(mockResponse.status).toHaveBeenCalledWith(401);
+    expect(mockResponse.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: 'Invalid timestamp format'
+      })
+    );
+    expect(mockNext).not.toHaveBeenCalled();
+  });
+
+  // Scenario 6: Custom validation
   it('should support custom validation logic', () => {
     const testBody = { data: 'test data' };
     const { signature, timestamp } = generateSignature(secretKey, testBody);
@@ -152,8 +179,8 @@ describe('Signature Validation Middleware', () => {
     expect(mockNext).not.toHaveBeenCalled();
   });
 
-  // Scenario 6: Performance tracking
-  it('should warn about slow middleware processing', () => {
+  // Scenario 7: Performance tracking
+  it('should log warning for slow middleware processing', () => {
     const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
     const testBody = { data: 'test data' };
     const { signature, timestamp } = generateSignature(secretKey, testBody);
